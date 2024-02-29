@@ -165,6 +165,12 @@ class ByzerLLMPerfExplains():
         max_end = 0
         for row in self.data:
             row_count += 1
+
+            if min_start == 0:
+                min_start = row.client_start
+            if max_end == 0:
+                max_end = row.client_end
+
             if row.client_start < min_start:
                 min_start = row.client_start
             if row.client_end > max_end:
