@@ -255,7 +255,9 @@ class ByzerLLMPerf():
         print(f"Using additional sampling params {additional_sampling_params}",flush=True)
         print(f"Using metadata {metadata}",flush=True)
         print(f"Using Ray for tasks {self.tasks_use_ray}",flush=True)
-
+        
+        if not os.path.exists(self.results_dir):
+            os.makedirs(self.results_dir)
         
         if self.tasks_use_ray:            
             ouptut_files = [open(os.path.join(self.results_dir,f"perf_{i}.jsonl"),"w") for i in range(self.num_concurrent_requests)]            
