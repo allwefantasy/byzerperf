@@ -83,12 +83,16 @@ class ByzerLLMPerf():
         
         output_file = open(os.path.join(self.results_dir,"perf.jsonl"),"w")
         with ProcessPoolExecutor(self.num_concurrent_requests) as executor:            
+            total_requests = len(self.prompts())
+            complted_requests = 0
             for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
                 temp_data = []
                 if len(prompts) == self.num_concurrent_requests:
                     for prompt in prompts:                        
                         future = executor.submit(self.request,prompt)
-                        temp_data.append(future.result())                                                
+                        temp_data.append(future.result())  
+                        complted_requests += len(temp_data)
+                        print(f"Completed {complted_requests} requests",flush=True)                                             
                 for data in temp_data:
                     for d in data:
                         output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
