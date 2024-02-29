@@ -9,13 +9,11 @@ import ray
 
 class Task():
 
-    def __init__(self,model:str,
-                 timeout:int,                                  
+    def __init__(self,model:str,                                                
                  additional_sampling_params:Dict[str,Any],                 
                  metadata:Dict[str,Any],                                  
                  template:str="auto" ) -> None:
-        self.model = model
-        self.timeout = timeout                
+        self.model = model                       
         self.additional_sampling_params = additional_sampling_params        
         self.metadata = metadata                            
         self.template = template
@@ -56,6 +54,10 @@ class Task():
             "response":t[0].output,
             "metadata":metadata
         }
+
+def request(query:str,**kargs):
+    task = Task(**kargs)
+    return task.request(query)    
 
 
 class ByzerLLMPerf():
@@ -101,19 +103,34 @@ class ByzerLLMPerf():
         metadata=self.metadata   
         template=self.template 
 
-        def request(query:str,**kargs):
-            task = Task(**kargs)
-            return task.request(query)
         
-        if self.tasks_use_ray:
-            raise NotImplementedError("tasks_use_ray is not implemented yet")                                                            
+        
+        if self.tasks_use_ray:            
+            output_file = open(os.path.join(self.results_dir,"perf.jsonl"),"w")                            
+            total_requests = len(self.prompts())
+            complted_requests = 0
+            for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
+                temp_data = []
+                if len(prompts) == self.num_concurrent_requests:
+                    for prompt in prompts:      
+                        print(f"Submit {prompt} ",flush=True)                  
+                        task = ray.remote(Task).remote(prompt,model=model, 
+                                                        additional_sampling_params=additional_sampling_params,                        
+                                                        metadata=metadata,                                                
+                                                        template=template)                                            
+                        temp_data.append(ray.get(task.request.remote(prompt)))  
+                        complted_requests += len(temp_data)
+                        print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                             
+                for data in temp_data:
+                    for d in data:
+                        output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
+                temp_data.clear()
+            output_file.close()
+            return 
         
         output_file = open(os.path.join(self.results_dir,"perf.jsonl"),"w")
-        
-        def init():            
-            ray.init(address="auto",namespace="default",ignore_reinit_error=True)        
-
-        with ProcessPoolExecutor(self.num_concurrent_requests,initializer=init) as executor:            
+                
+        with ProcessPoolExecutor(self.num_concurrent_requests) as executor:            
             total_requests = len(self.prompts())
             complted_requests = 0
             for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
