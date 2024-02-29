@@ -30,8 +30,13 @@ class ByzerLLMPerf():
         self.prompts_dir = prompts_dir
     
     def prompts(self):
-        with open(self.prompts_dir) as f:
-            return f.readlines()
+        prompts = []
+        for filename in os.listdir(self.prompts_dir):
+            filepath = os.path.join(self.prompts_dir, filename)
+            with open(filepath, 'r') as file:
+                for line in file:
+                    prompts.append(line.strip())
+        return prompts
 
     def construct_client(self):
         llm = ByzerLLM()
