@@ -61,10 +61,10 @@ args.add_argument(
 args.add_argument(
     "--metadata",
     type=str,
-    default="{}",
+    default="",
     help=(
-        "A json string metadata to include in the results, e.g. "
-        "These will be added to the metadata field of the results. "
+        "A comma separated list of metadata to include in the results, e.g. "
+        "name=foo,bar=1. These will be added to the metadata field of the results. "
     ),
 )
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
         num_concurrent_requests=args.num_concurrent_requests,
         additional_sampling_params=json.loads(args.additional_sampling_params),
         results_dir=args.results_dir,
-        user_metadata=json.loads(user_metadata),
+        user_metadata=user_metadata,
         tasks_use_ray=args.tasks_use_ray,
         prompts_dir=args.prompts_dir
     )        
