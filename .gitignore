@@ -1,0 +1,9 @@
+.idea/
+build/
+dist/
+src/byzerperf.egg-info/
+flash-attention/
+vllm/
+notebooks/
+**/__pycache__/**
+./deploy.sh
