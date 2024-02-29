@@ -114,7 +114,7 @@ class ByzerLLMPerf():
                 if len(prompts) == self.num_concurrent_requests:
                     for prompt in prompts:      
                         print(f"Submit {prompt} ",flush=True)                  
-                        task = ray.remote(Task).remote(prompt,model=model, 
+                        task = ray.remote(Task).remote(model=model, 
                                                         additional_sampling_params=additional_sampling_params,                        
                                                         metadata=metadata,                                                
                                                         template=template)                                            
