@@ -5,6 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 import time
 import os
 import more_itertools
+import ray
 
 class ByzerLLMPerf():
 
@@ -62,7 +63,9 @@ class ByzerLLMPerf():
 
     def request(self,query:str):
         if self.client is None:
+            ray.init(address="auto",namespace="default",ignore_reinit_error=True) 
             self.client = self.construct_client()
+    
         start = time.monotonic()
         t = self.client.chat_oai(conversations=[{
             "role":"user",
@@ -88,11 +91,12 @@ class ByzerLLMPerf():
             for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
                 temp_data = []
                 if len(prompts) == self.num_concurrent_requests:
-                    for prompt in prompts:                        
+                    for prompt in prompts:      
+                        print(f"Submit {prompt} ",flush=True)                  
                         future = executor.submit(self.request,prompt)
                         temp_data.append(future.result())  
                         complted_requests += len(temp_data)
-                        print(f"Completed {complted_requests} requests",flush=True)                                             
+                        print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                             
                 for data in temp_data:
                     for d in data:
                         output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
