@@ -34,8 +34,7 @@ class TaskResult():
         self.client_duration = client_duration
      
     @classmethod
-    def build_from(cls,data:Dict[str,Any]): 
-        print(data,flush=True)
+    def build_from(cls,data:Dict[str,Any]):         
         data["metadata"]["client_duration"] = data["metadata"]["client.duration"]
         return cls(response=data["response"],**data["metadata"])         
     
