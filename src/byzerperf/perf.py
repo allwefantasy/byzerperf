@@ -8,10 +8,7 @@ import concurrent
 from threading import Lock
 from byzerperf import utils
 
-class TaskResult():
-    #{"response": "", "metadata": {"request_id": "d9577d6295804e1fbfc28d2e4065005b", 
-    # "input_tokens_count": 21, "generated_tokens_count": 143, 
-    # "time_cost": 9604, "first_token_time": 133, "speed": 14.889629321116201, "prob": -0.6931471824645996, "client.duration": 9619.448789977469}}
+class TaskResult():    
     def __init__(self,
                 response:str,
                 request_id:str,
@@ -21,7 +18,9 @@ class TaskResult():
                 first_token_time:int,
                 speed:float,
                 prob:float,
-                client_duration:float
+                client_duration:float,
+                client_start:float,
+                client_end:float
                  ) -> None:
         self.response = response
         self.request_id = request_id
@@ -32,11 +31,11 @@ class TaskResult():
         self.speed = speed
         self.prob = prob
         self.client_duration = client_duration
+        self.client_start = client_start
+        self.client_end = client_end
      
     @classmethod
-    def build_from(cls,data:Dict[str,Any]):         
-        data["metadata"]["client_duration"] = data["metadata"]["client.duration"]
-        del data["metadata"]["client.duration"]
+    def build_from(cls,data:Dict[str,Any]):                   
         return cls(response=data["response"],**data["metadata"])         
     
 
@@ -85,7 +84,9 @@ class Task():
         }])
         end = time.monotonic()
         metadata = t[0].metadata
-        metadata["client.duration"] = (end - start)*1000
+        metadata["client_duration"] = (end - start)*1000
+        metadata["client_start"] = start
+        metadata["client_end"] = end
         return {
             "response":t[0].output,
             "metadata":metadata
@@ -154,25 +155,40 @@ class ByzerLLMPerfExplains():
             "avg_server_duration": 0,
             "avg_client_duration": 0,
             "client_generated_tokens_per_second": 0,
+            "generated_tokens_count": 0,
+            "input_tokens_count": 0,
+            "server_duration": 0,
+            "client_duration": 0,
         }
         row_count = 0
+        min_start = 0
+        max_end = 0
         for row in self.data:
             row_count += 1
-            metrics["avg_generated_tokens_count"] += row.generated_tokens_count
-            metrics["avg_input_tokens_count"] += row.input_tokens_count
-            metrics["avg_server_duration"] += row.time_cost
-            metrics["avg_client_duration"] += row.client_duration
+            if row.client_start < min_start:
+                min_start = row.client_start
+            if row.client_end > max_end:
+                max_end = row.client_end
+            metrics["generated_tokens_count"] += row.generated_tokens_count
+            metrics["input_tokens_count"] += row.input_tokens_count
+            metrics["server_duration"] += row.time_cost
+            metrics["client_duration"] += row.client_duration
+        
+        metrics["first_request_submit_time"]  = min_start
+        metrics["last_request_complete_time"] = max_end
 
-        metrics["server_generated_tokens_per_second_per_request"] = metrics["avg_generated_tokens_count"] / metrics["avg_server_duration"] * 1000
-        metrics["client_generated_tokens_per_second_per_request"] = metrics["avg_generated_tokens_count"] / metrics["avg_client_duration"] * 1000
+        metrics["server_generated_tokens_per_second_per_request"] = metrics["generated_tokens_count"] / metrics["server_duration"] * 1000
+        metrics["client_generated_tokens_per_second_per_request"] = metrics["generated_tokens_count"] / metrics["client_duration"] * 1000
 
         metrics["server_generated_tokens_per_second"] = metrics["server_generated_tokens_per_second_per_request"] * self.num_concurrent_requests
-        metrics["client_generated_tokens_per_second"] = metrics["client_generated_tokens_per_second_per_request"] * self.num_concurrent_requests
+        metrics["client_generated_tokens_per_second"] = metrics["generated_tokens_count"] / (max_end - min_start) * 1000
 
         metrics["avg_generated_tokens_count"] = metrics["avg_generated_tokens_count"] / row_count
         metrics["avg_input_tokens_count"] = metrics["avg_input_tokens_count"] / row_count
         metrics["avg_server_duration"] = metrics["avg_server_duration"] / row_count 
         metrics["avg_client_duration"] = metrics["avg_client_duration"] / row_count 
+
+        metrics["num_concurrent_requests"] = self.num_concurrent_requests
         
 
         context = json.dumps(metrics,ensure_ascii=False)   
