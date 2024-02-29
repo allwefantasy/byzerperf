@@ -61,10 +61,10 @@ args.add_argument(
 args.add_argument(
     "--metadata",
     type=str,
-    default="",
+    default="{}",
     help=(
-        "A comma separated list of metadata to include in the results, e.g. "
-        "name=foo,bar=1. These will be added to the metadata field of the results. "
+        "A json string metadata to include in the results, e.g. "
+        "These will be added to the metadata field of the results. "
     ),
 )
 
