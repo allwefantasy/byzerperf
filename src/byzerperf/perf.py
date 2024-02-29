@@ -187,7 +187,7 @@ class ByzerLLMPerfExplains():
         metrics["client_generated_tokens_per_second_per_request"] = metrics["generated_tokens_count"] / metrics["client_duration"] * 1000
 
         metrics["server_generated_tokens_per_second"] = metrics["server_generated_tokens_per_second_per_request"] * self.num_concurrent_requests
-        metrics["client_generated_tokens_per_second"] = metrics["generated_tokens_count"] / (max_end - min_start) * 1000
+        metrics["client_generated_tokens_per_second"] = metrics["generated_tokens_count"] / (max_end - min_start) 
 
         metrics["avg_generated_tokens_count"] = metrics["generated_tokens_count"] / row_count
         metrics["avg_input_tokens_count"] = metrics["input_tokens_count"] / row_count
