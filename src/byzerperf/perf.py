@@ -3,10 +3,10 @@ from byzerllm.utils.client import ByzerLLM,Templates
 import json
 import time
 import os
-import more_itertools
 import ray
 import concurrent
 from threading import Lock
+from byzerperf import utils
 
 class Task():
 
@@ -148,7 +148,7 @@ class ByzerLLMPerf():
             tasks = []
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_concurrent_requests) as executor:
-                for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
+                for prompts in utils.split_list(self.prompts(),self.num_concurrent_requests):
                     task = ray.remote(Task).remote(
                         prompts=prompts,
                         model=model, 
@@ -157,7 +157,7 @@ class ByzerLLMPerf():
                         template=template) 
                     tasks.append(task)
                                                 
-                for i,task in enumerate(tasks):
+                for i,task in enumerate(tasks):                    
                     file = ouptut_files[i]
                     print(f"Starting task-{i} {task}. output_file:{file.name}",flush=True)
                     executor.submit(run_task,f"task-{i}",task.run.remote(),file,complted_requests)                                                                   
