@@ -8,6 +8,11 @@ args = argparse.ArgumentParser(description="Run a correctness test for a given m
 args.add_argument(
     "--model", type=str, required=True, help="The model to use for this perf test."
 )
+
+args.add_argument(
+    "--template", type=str, default="auto", help="The template name of model"
+)
+
 args.add_argument(
     "--num-concurrent-requests",
     type=int,
@@ -99,7 +104,8 @@ if __name__ == "__main__":
         results_dir=args.results_dir,
         metadata=user_metadata,
         tasks_use_ray=args.tasks_use_ray,
-        prompts_dir=args.prompts_dir
+        prompts_dir=args.prompts_dir,
+        template=args.template
     )        
 
     byzer_llm_perf.run()

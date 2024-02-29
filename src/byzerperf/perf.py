@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from byzerllm.utils.client import ByzerLLM
+from byzerllm.utils.client import ByzerLLM,Templates
 import json
 from concurrent.futures import ProcessPoolExecutor
 import time
@@ -16,7 +16,8 @@ class ByzerLLMPerf():
                  results_dir:str,
                  metadata:Dict[str,Any],
                  prompts_dir:str,
-                 tasks_use_ray:bool=False,                 
+                 tasks_use_ray:bool=False,
+                 template:str="auto"                 
                  ):
          
         self.model = model
@@ -28,6 +29,7 @@ class ByzerLLMPerf():
         self.metadata = metadata            
         self.tasks_use_ray = tasks_use_ray
         self.prompts_dir = prompts_dir
+        self.template = template
     
     def prompts(self):
         prompts = []
@@ -39,8 +41,15 @@ class ByzerLLMPerf():
         return prompts
 
     def construct_client(self):
-        llm = ByzerLLM()
-        llm.setup_template(model=self.model,template="auto")
+        llm = ByzerLLM()  
+              
+        if self.template == "qwen":
+            llm.setup_template(model=self.model,template=Templates.qwen())
+        elif self.template == "yi":
+            llm.setup_template(model=self.model,template=Templates.yi())
+        else:
+            llm.setup_template(model=self.model,template="auto")
+
         llm.setup_default_emb_model_name("emb")
         llm.setup_default_model_name(self.model)
         llm.setup_extra_generation_params(self.model,extra_generation_params={
@@ -48,8 +57,10 @@ class ByzerLLMPerf():
             "top_p":0.99,
             **self.additional_sampling_params
         })
+        return llm
 
-    def request(self,client:ByzerLLM,query:str):
+    def request(self,query:str):
+        client = self.construct_client()
         start = time.monotonic()
         t = client.chat_oai(conversations=[{
             "role":"user",
@@ -73,16 +84,11 @@ class ByzerLLMPerf():
             for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
                 temp_data = []
                 if len(prompts) == self.num_concurrent_requests:
-                    for prompt in prompts:
-                        result = executor.map(self.request,self.construct_client(),[prompt])
-                        temp_data.append(result)
+                    for prompt in prompts:                        
+                        future = executor.submit(self.request,self.construct_client(),prompt)
+                        temp_data.append(future.result())                                                
                 for data in temp_data:
                     for d in data:
                         output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
                 temp_data.clear()
         output_file.close()                    
-
-
-                    
-                
-            
