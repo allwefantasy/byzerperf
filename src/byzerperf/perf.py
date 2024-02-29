@@ -141,8 +141,8 @@ class ByzerLLMPerfExplains():
             "avg_input_tokens_count": 0,
             "avg_generated_tokens_count": 0,
             "server_generated_tokens_per_second": 0,
-            "server_duration": 0,
-            "client_duration": 0,
+            "avg_server_duration": 0,
+            "avg_client_duration": 0,
             "client_generated_tokens_per_second": 0,
         }
         row_count = 0
@@ -150,17 +150,17 @@ class ByzerLLMPerfExplains():
             row_count += 1
             metrics["avg_generated_tokens_count"] += row.generated_tokens_count
             metrics["avg_input_tokens_count"] += row.input_tokens_count
-            metrics["server_duration"] += row.time_cost
-            metrics["client_duration"] += row.client_duration
+            metrics["avg_server_duration"] += row.time_cost
+            metrics["avg_client_duration"] += row.client_duration
 
         metrics["avg_generated_tokens_count"] = metrics["avg_generated_tokens_count"] / row_count
         metrics["avg_input_tokens_count"] = metrics["avg_input_tokens_count"] / row_count
-        metrics["server_duration"] = metrics["server_duration"] / row_count 
-        metrics["client_duration"] = metrics["client_duration"] / row_count 
+        metrics["avg_server_duration"] = metrics["avg_server_duration"] / row_count 
+        metrics["avg_client_duration"] = metrics["avg_client_duration"] / row_count 
 
         context = json.dumps(metrics,ensure_ascii=False)   
 
-        return self.llm.response()(self._run)(f'''
+        v = self.llm.response()(self._run)(f'''
 有上下文如下：
                                               
 ```json                                              
@@ -168,6 +168,7 @@ class ByzerLLMPerfExplains():
 ```
 请根据上面的上下文回答：{prompt}
 ''')
+        return v,context
 
 
 class ByzerLLMPerf():
