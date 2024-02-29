@@ -1,4 +1,4 @@
-from typing import Dict, Any,List
+from typing import Dict, Any,List,Generator
 from byzerllm.utils.client import ByzerLLM,Templates
 import json
 import time
@@ -7,6 +7,36 @@ import ray
 import concurrent
 from threading import Lock
 from byzerperf import utils
+
+class TaskResult():
+    #{"response": "", "metadata": {"request_id": "d9577d6295804e1fbfc28d2e4065005b", 
+    # "input_tokens_count": 21, "generated_tokens_count": 143, 
+    # "time_cost": 9604, "first_token_time": 133, "speed": 14.889629321116201, "prob": -0.6931471824645996, "client.duration": 9619.448789977469}}
+    def __init__(self,
+                response:str,
+                request_id:str,
+                input_tokens_count:int,
+                generated_tokens_count:int,
+                time_cost:int,
+                first_token_time:int,
+                speed:float,
+                prob:float,
+                client_duration:float
+                 ) -> None:
+        self.response = response
+        self.request_id = request_id
+        self.input_tokens_count = input_tokens_count
+        self.generated_tokens_count = generated_tokens_count
+        self.time_cost = time_cost
+        self.first_token_time = first_token_time
+        self.speed = speed
+        self.prob = prob
+        self.client_duration = client_duration
+     
+    @staticmethod()
+    def build_from(cls,data:Dict[str,Any]):  
+        return cls(response=data["response"],**data["metadata"])         
+    
 
 class Task():
 
@@ -83,7 +113,57 @@ def run_task(task_id,task_response,output_file,counter:RowCounter):
         counter.increment(f"from task {task_id}")
     output_file.close()                                
                             
+
+class ByzerLLMPerfExplains():     
+    def __init__(self,llm:ByzerLLM,results_dir:str) -> None:
+        self.results_dir = results_dir  
+        self.llm = llm 
+        self.data = self.get_data()    
+
+
+    def get_data(self)->Generator[TaskResult, None, None]
+        for root, dirs, files in os.walk(self.results_dir):
+            for file in files:
+                if file.endswith(".jsonl"):
+                    with open(os.path.join(root, file), "r") as f:
+                        for line in f:
+                            yield TaskResult.build_from(json.loads(line))
+
+    def _run(self,prompt:str)->utils.Str:   
+        pass 
     
+    def run(self,prompt:str):
+        metrics = {
+            "avg_input_tokens_count": 0,
+            "avg_generated_tokens_count": 0,
+            "server_generated_tokens_per_second": 0,
+            "server_duration": 0,
+            "client_duration": 0,
+            "client_generated_tokens_per_second": 0,
+        }
+        row_count = 0
+        for row in self.data:
+            row_count += 1
+            metrics["avg_generated_tokens_count"] += row.generated_tokens_count
+            metrics["avg_input_tokens_count"] += row.input_tokens_count
+            metrics["server_duration"] += row.time_cost
+            metrics["client_duration"] += row.client_duration
+
+        metrics["avg_generated_tokens_count"] = metrics["avg_generated_tokens_count"] / row_count
+        metrics["avg_input_tokens_count"] = metrics["avg_input_tokens_count"] / row_count
+        metrics["server_duration"] = metrics["server_duration"] / row_count 
+        metrics["client_duration"] = metrics["client_duration"] / row_count 
+
+        context = json.dumps(metrics,ensure_ascii=False)   
+
+        return self.llm.response()(self._run)(f'''
+有上下文如下：
+                                              
+```json                                              
+{context}
+```
+请根据上面的上下文回答：{prompt}
+''')
 
 
 class ByzerLLMPerf():
@@ -122,7 +202,6 @@ class ByzerLLMPerf():
         return prompts
 
     
-
     def run(self):
         model = self.model
         additional_sampling_params=self.additional_sampling_params 
