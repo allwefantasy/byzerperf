@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from byzerllm.utils.client import ByzerLLM
-import ray
+import json
 from concurrent.futures import ProcessPoolExecutor
 import time
 import os
@@ -73,7 +73,7 @@ class ByzerLLMPerf():
                         temp_data.append(result)
                 for data in temp_data:
                     for d in data:
-                        output_file.write(d)
+                        output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
                 temp_data.clear()
         output_file.close()                    
 
