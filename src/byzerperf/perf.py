@@ -87,7 +87,7 @@ class ByzerLLMPerf():
                 temp_data = []
                 if len(prompts) == self.num_concurrent_requests:
                     for prompt in prompts:                        
-                        future = executor.submit(self.request,self.construct_client(),prompt)
+                        future = executor.submit(self.request,prompt)
                         temp_data.append(future.result())                                                
                 for data in temp_data:
                     for d in data:
