@@ -97,7 +97,7 @@ if __name__ == "__main__":
         num_concurrent_requests=args.num_concurrent_requests,
         additional_sampling_params=json.loads(args.additional_sampling_params),
         results_dir=args.results_dir,
-        user_metadata=user_metadata,
+        metadata=user_metadata,
         tasks_use_ray=args.tasks_use_ray,
         prompts_dir=args.prompts_dir
     )        
