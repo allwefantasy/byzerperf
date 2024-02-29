@@ -161,7 +161,7 @@ class ByzerLLMPerf():
                 
                 for i,task in enumerate(tasks):
                     file = task_to_file[task]
-                    print(f"Starting task-{i} {task}. output_file:{file}",flush=True)
+                    print(f"Starting task-{i} {task}. output_file:{file.name}",flush=True)
                     executor.submit(run_task,task.run.remote(),file,complted_requests)                                                                   
             
             return 
