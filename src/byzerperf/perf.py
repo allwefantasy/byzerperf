@@ -97,12 +97,16 @@ class ByzerLLMPerf():
     
 
     def run(self):
-
+        model = self.model
+        additional_sampling_params=self.additional_sampling_params 
+        metadata=self.metadata   
+        template=self.template 
+                                                                        
         def request(query:str):
-            task = Task(model=self.model,                                                                        
-                        additional_sampling_params=self.additional_sampling_params,                        
-                        metadata=self.metadata,                                                
-                        template=self.template)
+            task = Task(model=model, 
+                        additional_sampling_params=additional_sampling_params,                        
+                        metadata=metadata,                                                
+                        template=template)
             return task.request(query)
         
         if self.tasks_use_ray:
