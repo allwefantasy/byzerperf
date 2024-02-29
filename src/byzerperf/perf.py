@@ -33,7 +33,7 @@ class TaskResult():
         self.prob = prob
         self.client_duration = client_duration
      
-    @staticmethod()
+    @classmethod
     def build_from(cls,data:Dict[str,Any]):  
         return cls(response=data["response"],**data["metadata"])         
     
@@ -121,7 +121,7 @@ class ByzerLLMPerfExplains():
         self.data = self.get_data()    
 
 
-    def get_data(self)->Generator[TaskResult, None, None]
+    def get_data(self)->Generator[TaskResult, None, None]:
         for root, dirs, files in os.walk(self.results_dir):
             for file in files:
                 if file.endswith(".jsonl"):
