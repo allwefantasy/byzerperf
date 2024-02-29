@@ -110,17 +110,24 @@ class ByzerLLMPerf():
             total_requests = len(self.prompts())
             complted_requests = 0
             for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
+                future_tasks = []
                 temp_data = []
-                if len(prompts) == self.num_concurrent_requests:
+                if len(prompts) == self.num_concurrent_requests:                    
                     for prompt in prompts:      
                         print(f"Submit {prompt} ",flush=True)                  
                         task = ray.remote(Task).remote(model=model, 
                                                         additional_sampling_params=additional_sampling_params,                        
                                                         metadata=metadata,                                                
-                                                        template=template)                                            
-                        temp_data.append(ray.get(task.request.remote(prompt)))  
-                        complted_requests += len(temp_data)
-                        print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                             
+                                                        template=template) 
+                        v = task.request.remote(prompt)
+                        future_tasks.append((task,v))                                           
+                    
+                    for (task,v) in future_tasks:
+                        temp_data.append(ray.get(v))  
+
+                    future_tasks.clear()                        
+                    complted_requests += len(temp_data)
+                    print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                                 
                 for data in temp_data:
                     for d in data:
                         output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
