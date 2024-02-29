@@ -156,11 +156,9 @@ class ByzerLLMPerf():
                         metadata=metadata,                                                
                         template=template) 
                     tasks.append(task)
-                
-                task_to_file = {task:file for task,file in zip(tasks,ouptut_files)}
-                
+                                                
                 for i,task in enumerate(tasks):
-                    file = task_to_file[task]
+                    file = ouptut_files[i]
                     print(f"Starting task-{i} {task}. output_file:{file.name}",flush=True)
                     executor.submit(run_task,f"task-{i}",task.run.remote(),file,complted_requests)                                                                   
             
