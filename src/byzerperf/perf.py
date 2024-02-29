@@ -7,40 +7,19 @@ import os
 import more_itertools
 import ray
 
-class ByzerLLMPerf():
+class Task():
 
     def __init__(self,model:str,
-                 timeout:int,
-                 max_num_completed_requests:int,
-                 num_concurrent_requests:int,
-                 additional_sampling_params:Dict[str,Any],
-                 results_dir:str,
-                 metadata:Dict[str,Any],
-                 prompts_dir:str,
-                 tasks_use_ray:bool=False,
-                 template:str="auto"                 
-                 ):
-         
+                 timeout:int,                                  
+                 additional_sampling_params:Dict[str,Any],                 
+                 metadata:Dict[str,Any],                                  
+                 template:str="auto" ) -> None:
         self.model = model
-        self.timeout = timeout
-        self.max_num_completed_requests = max_num_completed_requests
-        self.num_concurrent_requests = num_concurrent_requests
-        self.additional_sampling_params = additional_sampling_params
-        self.results_dir = results_dir
-        self.metadata = metadata            
-        self.tasks_use_ray = tasks_use_ray
-        self.prompts_dir = prompts_dir
+        self.timeout = timeout                
+        self.additional_sampling_params = additional_sampling_params        
+        self.metadata = metadata                            
         self.template = template
-        self.client = None
-    
-    def prompts(self):
-        prompts = []
-        for filename in os.listdir(self.prompts_dir):
-            filepath = os.path.join(self.prompts_dir, filename)
-            with open(filepath, 'r') as file:
-                for line in file:
-                    prompts.append(line.strip())
-        return prompts
+        self.client = self.construct_client()
 
     def construct_client(self):
         llm = ByzerLLM()  
@@ -79,13 +58,62 @@ class ByzerLLMPerf():
             "metadata":metadata
         }
 
+
+class ByzerLLMPerf():
+
+    def __init__(self,model:str,
+                 timeout:int,
+                 max_num_completed_requests:int,
+                 num_concurrent_requests:int,
+                 additional_sampling_params:Dict[str,Any],
+                 results_dir:str,
+                 metadata:Dict[str,Any],
+                 prompts_dir:str,
+                 tasks_use_ray:bool=False,
+                 template:str="auto"                 
+                 ):
+         
+        self.model = model
+        self.timeout = timeout
+        self.max_num_completed_requests = max_num_completed_requests
+        self.num_concurrent_requests = num_concurrent_requests
+        self.additional_sampling_params = additional_sampling_params
+        self.results_dir = results_dir
+        self.metadata = metadata            
+        self.tasks_use_ray = tasks_use_ray
+        self.prompts_dir = prompts_dir
+        self.template = template
+        self.client = None
+    
+    def prompts(self):
+        prompts = []
+        for filename in os.listdir(self.prompts_dir):
+            filepath = os.path.join(self.prompts_dir, filename)
+            with open(filepath, 'r') as file:
+                for line in file:
+                    prompts.append(line.strip())
+        return prompts
+
+    
+
     def run(self):
+
+        def request(query:str):
+            task = Task(model=self.model,                                                                        
+                        additional_sampling_params=self.additional_sampling_params,                        
+                        metadata=self.metadata,                                                
+                        template=self.template)
+            return task.request(query)
         
         if self.tasks_use_ray:
             raise NotImplementedError("tasks_use_ray is not implemented yet")                                                            
         
         output_file = open(os.path.join(self.results_dir,"perf.jsonl"),"w")
-        with ProcessPoolExecutor(self.num_concurrent_requests) as executor:            
+        
+        def init():
+            ray.init(address="auto",namespace="default",ignore_reinit_error=True)        
+
+        with ProcessPoolExecutor(self.num_concurrent_requests,initializer=init) as executor:            
             total_requests = len(self.prompts())
             complted_requests = 0
             for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
@@ -93,7 +121,7 @@ class ByzerLLMPerf():
                 if len(prompts) == self.num_concurrent_requests:
                     for prompt in prompts:      
                         print(f"Submit {prompt} ",flush=True)                  
-                        future = executor.submit(self.request,prompt)
+                        future = executor.submit(request,prompt)
                         temp_data.append(future.result())  
                         complted_requests += len(temp_data)
                         print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                             
