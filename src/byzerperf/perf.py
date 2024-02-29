@@ -41,8 +41,7 @@ class Task():
         return llm
 
     def request(self,query:str):
-        if self.client is None:
-            ray.init(address="auto",namespace="default",ignore_reinit_error=True) 
+        if self.client is None:            
             self.client = self.construct_client()
     
         start = time.monotonic()
@@ -101,12 +100,9 @@ class ByzerLLMPerf():
         additional_sampling_params=self.additional_sampling_params 
         metadata=self.metadata   
         template=self.template 
-                                                                        
-        def request(query:str):
-            task = Task(model=model, 
-                        additional_sampling_params=additional_sampling_params,                        
-                        metadata=metadata,                                                
-                        template=template)
+
+        def request(query:str,**kargs):
+            task = Task(**kargs)
             return task.request(query)
         
         if self.tasks_use_ray:
@@ -114,7 +110,7 @@ class ByzerLLMPerf():
         
         output_file = open(os.path.join(self.results_dir,"perf.jsonl"),"w")
         
-        def init():
+        def init():            
             ray.init(address="auto",namespace="default",ignore_reinit_error=True)        
 
         with ProcessPoolExecutor(self.num_concurrent_requests,initializer=init) as executor:            
@@ -125,7 +121,11 @@ class ByzerLLMPerf():
                 if len(prompts) == self.num_concurrent_requests:
                     for prompt in prompts:      
                         print(f"Submit {prompt} ",flush=True)                  
-                        future = executor.submit(request,prompt)
+                        future = executor.submit(request,prompt,model=model, 
+                        additional_sampling_params=additional_sampling_params,                        
+                        metadata=metadata,                                                
+                        template=template)
+                        
                         temp_data.append(future.result())  
                         complted_requests += len(temp_data)
                         print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                             
