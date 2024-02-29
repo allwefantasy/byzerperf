@@ -30,6 +30,7 @@ class ByzerLLMPerf():
         self.tasks_use_ray = tasks_use_ray
         self.prompts_dir = prompts_dir
         self.template = template
+        self.client = None
     
     def prompts(self):
         prompts = []
@@ -42,7 +43,7 @@ class ByzerLLMPerf():
 
     def construct_client(self):
         llm = ByzerLLM()  
-              
+
         if self.template == "qwen":
             llm.setup_template(model=self.model,template=Templates.qwen())
         elif self.template == "yi":
@@ -60,9 +61,10 @@ class ByzerLLMPerf():
         return llm
 
     def request(self,query:str):
-        client = self.construct_client()
+        if self.client is None:
+            self.client = self.construct_client()
         start = time.monotonic()
-        t = client.chat_oai(conversations=[{
+        t = self.client.chat_oai(conversations=[{
             "role":"user",
             "content":query
         }])
