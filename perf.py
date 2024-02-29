@@ -76,7 +76,7 @@ args.add_argument(
 args.add_argument(
     "--tasks_use_ray",
     type=bool,
-    default=False,
+    default=True,
     help=(
         "The perf task will be launched using ray, otherwise it will be executed by conccurent.ProcessPoolExecutor. "        
     ),

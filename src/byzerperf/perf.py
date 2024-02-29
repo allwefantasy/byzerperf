@@ -1,18 +1,22 @@
-from typing import Dict, Any
+from typing import Dict, Any,List
 from byzerllm.utils.client import ByzerLLM,Templates
 import json
-from concurrent.futures import ProcessPoolExecutor
 import time
 import os
 import more_itertools
 import ray
+import concurrent
+from threading import Lock
 
 class Task():
 
-    def __init__(self,model:str,                                                
+    def __init__(self,
+                 prompts:List[str],
+                 model:str,                                                
                  additional_sampling_params:Dict[str,Any],                 
                  metadata:Dict[str,Any],                                  
                  template:str="auto" ) -> None:
+        self.prompts = prompts
         self.model = model                       
         self.additional_sampling_params = additional_sampling_params        
         self.metadata = metadata                            
@@ -54,10 +58,32 @@ class Task():
             "response":t[0].output,
             "metadata":metadata
         }
+    
+    def run(self):        
+        for prompt in self.prompts:
+            yield(self.request(prompt)) 
 
-def request(query:str,**kargs):
-    task = Task(**kargs)
-    return task.request(query)    
+class RowCounter():
+    def __init__(self,total:int):
+        self.count = 0
+        self.total = total
+        self.lock = Lock()
+
+    def increment(self):
+        with self.lock:
+            self.count += 1
+
+        print(f"Completed Requests:{self.count}/{self.total}",flush=True)    
+        return self.count
+
+def run_task(task_response,output_file,counter:RowCounter):
+    for item in task_response:
+        row = ray.get(item)
+        output_file.write(json.dumps(row,ensure_ascii=False) + "\n")
+        counter.increment()
+    output_file.close()                                
+                            
+    
 
 
 class ByzerLLMPerf():
@@ -70,7 +96,7 @@ class ByzerLLMPerf():
                  results_dir:str,
                  metadata:Dict[str,Any],
                  prompts_dir:str,
-                 tasks_use_ray:bool=False,
+                 tasks_use_ray:bool=True,
                  template:str="auto"                 
                  ):
          
@@ -102,59 +128,29 @@ class ByzerLLMPerf():
         additional_sampling_params=self.additional_sampling_params 
         metadata=self.metadata   
         template=self.template 
-
-        
         
         if self.tasks_use_ray:            
-            output_file = open(os.path.join(self.results_dir,"perf.jsonl"),"w")                            
+            ouput_files = [open(os.path.join(self.results_dir,f"perf_{i}.jsonl"),"w") for i in range(self.num_concurrent_requests)]            
             total_requests = len(self.prompts())
-            complted_requests = 0
-            for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
-                future_tasks = []
-                temp_data = []
-                if len(prompts) == self.num_concurrent_requests:                    
-                    for prompt in prompts:      
-                        print(f"Submit {prompt} ",flush=True)                  
-                        task = ray.remote(Task).remote(model=model, 
-                                                        additional_sampling_params=additional_sampling_params,                        
-                                                        metadata=metadata,                                                
-                                                        template=template) 
-                        v = task.request.remote(prompt)
-                        future_tasks.append((task,v))                                           
-                    
-                    for (task,v) in future_tasks:
-                        temp_data.append(ray.get(v))  
+            complted_requests = RowCounter(total_requests)
 
-                    future_tasks.clear()                        
-                    complted_requests += len(temp_data)
-                    print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                                 
-                for data in temp_data:
-                    for d in data:
-                        output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
-                temp_data.clear()
-            output_file.close()
-            return 
-        
-        output_file = open(os.path.join(self.results_dir,"perf.jsonl"),"w")
-                
-        with ProcessPoolExecutor(self.num_concurrent_requests) as executor:            
-            total_requests = len(self.prompts())
-            complted_requests = 0
-            for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
-                temp_data = []
-                if len(prompts) == self.num_concurrent_requests:
-                    for prompt in prompts:      
-                        print(f"Submit {prompt} ",flush=True)                  
-                        future = executor.submit(request,prompt,model=model, 
+            tasks = []
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_concurrent_requests) as executor:
+                for prompts in more_itertools.chunked(self.prompts(),self.num_concurrent_requests):
+                    task = ray.remote(Task).remote(
+                        prompts=prompts,
+                        model=model, 
                         additional_sampling_params=additional_sampling_params,                        
                         metadata=metadata,                                                
-                        template=template)
-                        
-                        temp_data.append(future.result())  
-                        complted_requests += len(temp_data)
-                        print(f"Completed {complted_requests}/{total_requests} requests ",flush=True)                                             
-                for data in temp_data:
-                    for d in data:
-                        output_file.write(json.dumps(d,ensure_ascii=False) + "\n")
-                temp_data.clear()
-        output_file.close()                    
+                        template=template) 
+                    tasks.append(task)
+                
+                task_to_file = {task:file for task,file in zip(tasks,ouput_files)}
+                
+                for task in tasks:
+                    executor.submit(run_task,task.run.remote(),task_to_file[task],complted_requests)                                                                   
+            
+            return 
+        
+        raise NotImplementedError("tasks_use_ray only support Ray for now")                   
