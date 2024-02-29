@@ -102,4 +102,5 @@ if __name__ == "__main__":
         prompts_dir=args.prompts_dir
     )        
 
-    results = byzer_llm_perf.run()
+    byzer_llm_perf.run()
+    
