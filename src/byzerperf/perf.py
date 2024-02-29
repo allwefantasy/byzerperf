@@ -69,18 +69,18 @@ class RowCounter():
         self.total = total
         self.lock = Lock()
 
-    def increment(self):
+    def increment(self,suffix=""):
         with self.lock:
             self.count += 1
 
-        print(f"Completed Requests:{self.count}/{self.total}",flush=True)    
+        print(f"Completed Requests:{self.count}/{self.total} {suffix}",flush=True)    
         return self.count
 
-def run_task(task_response,output_file,counter:RowCounter):
+def run_task(task_id,task_response,output_file,counter:RowCounter):
     for item in task_response:
         row = ray.get(item)
         output_file.write(json.dumps(row,ensure_ascii=False) + "\n")
-        counter.increment()
+        counter.increment(f"from task {task_id}")
     output_file.close()                                
                             
     
@@ -162,7 +162,7 @@ class ByzerLLMPerf():
                 for i,task in enumerate(tasks):
                     file = task_to_file[task]
                     print(f"Starting task-{i} {task}. output_file:{file.name}",flush=True)
-                    executor.submit(run_task,task.run.remote(),file,complted_requests)                                                                   
+                    executor.submit(run_task,f"task-{i}",task.run.remote(),file,complted_requests)                                                                   
             
             return 
         
