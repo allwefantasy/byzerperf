@@ -79,6 +79,57 @@ byzer_llm_perf = ByzerLLMPerf(
 byzer_llm_perf.run()    
 ```
 
+## Performance Test Result
+
+```python
+import ray
+from byzerllm.utils.client import ByzerLLM,Templates
+from byzerperf.perf import ByzerLLMPerfExplains
+
+ray.init(address="auto",namespace="default",ignore_reinit_error=True)  
+
+llm = ByzerLLM()
+chat_model_name = "qianwen_chat"               
+llm.setup_template(chat_model_name,"auto") 
+llm.setup_default_model_name(chat_model_name)
+
+explains = ByzerLLMPerfExplains(llm,"/home/byzerllm/projects/byzerperf/result-15")
+t,context = explains.run("服务端和客户端tokens/s分别是多少")   
+t.value
+```
+
+The output:
+
+```
+服务端tokens/s为109.92657498681595，客户端tokens/s为93.13436850985012
+```
+
+You can get more metrics by print the `context`:
+
+```python
+print(context)
+```
+
+The output:
+
+```json
+{'avg_input_tokens_count': 18.678571428571427,
+ 'avg_generated_tokens_count': 161.29761904761904,
+ 'server_generated_tokens_per_second': 109.92657498681595,
+ 'avg_server_duration': 14673.214285714286,
+ 'avg_client_duration': 14693.433444989274,
+ 'client_generated_tokens_per_second': 93.13436850985012,
+ 'generated_tokens_count': 13549,
+ 'input_tokens_count': 1569,
+ 'server_duration': 1232550,
+ 'client_duration': 1234248.409379099,
+ 'first_request_submit_time': 279711.875170331,
+ 'last_request_complete_time': 279857.353152485,
+ 'server_generated_tokens_per_second_per_request': 10.992657498681595,
+ 'client_generated_tokens_per_second_per_request': 10.97753085767877,
+ 'num_concurrent_requests': 10}
+```
+
 ## Roadmap
 
 - [] Support streaming inference performance test which can have TTFT metric(the first token arrived time)
