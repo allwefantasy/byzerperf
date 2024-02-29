@@ -34,7 +34,9 @@ class TaskResult():
         self.client_duration = client_duration
      
     @classmethod
-    def build_from(cls,data:Dict[str,Any]):  
+    def build_from(cls,data:Dict[str,Any]): 
+        print(data,flush=True)
+        data["metadata"]["client_duration"] = data["metadata"]["client.duration"]
         return cls(response=data["response"],**data["metadata"])         
     
 
@@ -127,6 +129,8 @@ class ByzerLLMPerfExplains():
                 if file.endswith(".jsonl"):
                     with open(os.path.join(root, file), "r") as f:
                         for line in f:
+                            if line.strip() == "":
+                                continue
                             yield TaskResult.build_from(json.loads(line))
 
     def _run(self,prompt:str)->utils.Str:   
