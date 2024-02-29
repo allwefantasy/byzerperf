@@ -128,7 +128,8 @@ class ByzerLLMPerf():
         additional_sampling_params=self.additional_sampling_params 
         metadata=self.metadata   
         template=self.template 
-
+        
+        print("============================================",flush=True)
         print(f"Running perf with {self.num_concurrent_requests} concurrent requests",flush=True)
         print(f"Results will be saved to {self.results_dir}",flush=True)
         print(f"Using model {model}",flush=True)
@@ -159,8 +160,9 @@ class ByzerLLMPerf():
                 task_to_file = {task:file for task,file in zip(tasks,ouptut_files)}
                 
                 for i,task in enumerate(tasks):
-                    print(f"Starting task-{i} {task}.",flush=True)
-                    executor.submit(run_task,task.run.remote(),task_to_file[task],complted_requests)                                                                   
+                    file = task_to_file[task]
+                    print(f"Starting task-{i} {task}. output_file:{file}",flush=True)
+                    executor.submit(run_task,task.run.remote(),file,complted_requests)                                                                   
             
             return 
         
