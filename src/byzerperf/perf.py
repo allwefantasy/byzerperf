@@ -153,12 +153,14 @@ class ByzerLLMPerfExplains():
             metrics["avg_server_duration"] += row.time_cost
             metrics["avg_client_duration"] += row.client_duration
 
+        metrics["server_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_server_duration"] / 1000
+        metrics["client_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_client_duration"] / 1000
+        
         metrics["avg_generated_tokens_count"] = metrics["avg_generated_tokens_count"] / row_count
         metrics["avg_input_tokens_count"] = metrics["avg_input_tokens_count"] / row_count
         metrics["avg_server_duration"] = metrics["avg_server_duration"] / row_count 
         metrics["avg_client_duration"] = metrics["avg_client_duration"] / row_count 
-        metrics["server_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_server_duration"] / 1000
-        metrics["client_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_client_duration"] / 1000
+        
 
         context = json.dumps(metrics,ensure_ascii=False)   
 
