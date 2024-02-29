@@ -117,11 +117,21 @@ def run_task(task_id,task_response,output_file,counter:RowCounter):
                             
 
 class ByzerLLMPerfExplains():     
-    def __init__(self,llm:ByzerLLM,results_dir:str) -> None:
+    def __init__(self,llm:ByzerLLM,results_dir:str,num_concurrent_requests:int=0) -> None:
         self.results_dir = results_dir  
         self.llm = llm 
         self.data = self.get_data()    
+        self.num_concurrent_requests = num_concurrent_requests
+        if self.num_concurrent_requests == 0:
+            self.num_concurrent_requests = self.get_num_concurrent_requests()
 
+    def get_num_concurrent_requests(self):
+        count = 0
+        for root, dirs, files in os.walk(self.results_dir):
+            for file in files:
+                if file.endswith(".jsonl"):
+                   count += 1
+        return count           
 
     def get_data(self)->Generator[TaskResult, None, None]:
         for root, dirs, files in os.walk(self.results_dir):
@@ -153,8 +163,11 @@ class ByzerLLMPerfExplains():
             metrics["avg_server_duration"] += row.time_cost
             metrics["avg_client_duration"] += row.client_duration
 
-        metrics["server_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_server_duration"] * 1000
-        metrics["client_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_client_duration"] * 1000
+        metrics["server_generated_tokens_per_second_per_request"] = metrics["avg_generated_tokens_count"] / metrics["avg_server_duration"] * 1000
+        metrics["client_generated_tokens_per_second_per_request"] = metrics["avg_generated_tokens_count"] / metrics["avg_client_duration"] * 1000
+
+        metrics["server_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_server_duration"] * 1000 * self.num_concurrent_requests
+        metrics["client_generated_tokens_per_second"] = metrics["avg_generated_tokens_count"] / metrics["avg_client_duration"] * 1000 * self.num_concurrent_requests
 
         metrics["avg_generated_tokens_count"] = metrics["avg_generated_tokens_count"] / row_count
         metrics["avg_input_tokens_count"] = metrics["avg_input_tokens_count"] / row_count
