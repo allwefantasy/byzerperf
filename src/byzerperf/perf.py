@@ -128,9 +128,19 @@ class ByzerLLMPerf():
         additional_sampling_params=self.additional_sampling_params 
         metadata=self.metadata   
         template=self.template 
+
+        print(f"Running perf with {self.num_concurrent_requests} concurrent requests",flush=True)
+        print(f"Results will be saved to {self.results_dir}",flush=True)
+        print(f"Using model {model}",flush=True)
+        print(f"Using prompts from {self.prompts_dir}",flush=True)
+        print(f"Using template {template}",flush=True)
+        print(f"Using additional sampling params {additional_sampling_params}",flush=True)
+        print(f"Using metadata {metadata}",flush=True)
+        print(f"Using Ray for tasks {self.tasks_use_ray}",flush=True)
+
         
         if self.tasks_use_ray:            
-            ouput_files = [open(os.path.join(self.results_dir,f"perf_{i}.jsonl"),"w") for i in range(self.num_concurrent_requests)]            
+            ouptut_files = [open(os.path.join(self.results_dir,f"perf_{i}.jsonl"),"w") for i in range(self.num_concurrent_requests)]            
             total_requests = len(self.prompts())
             complted_requests = RowCounter(total_requests)
 
@@ -146,9 +156,10 @@ class ByzerLLMPerf():
                         template=template) 
                     tasks.append(task)
                 
-                task_to_file = {task:file for task,file in zip(tasks,ouput_files)}
+                task_to_file = {task:file for task,file in zip(tasks,ouptut_files)}
                 
-                for task in tasks:
+                for i,task in enumerate(tasks):
+                    print(f"Starting task-{i} {task}.",flush=True)
                     executor.submit(run_task,task.run.remote(),task_to_file[task],complted_requests)                                                                   
             
             return 
