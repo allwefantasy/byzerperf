@@ -74,6 +74,15 @@ args.add_argument(
 )
 
 args.add_argument(
+    "--ray-address",
+    type=str,
+    default="auto",
+    help=(
+        "The ray address to connect to. by default, the value is auto."         
+    ),
+)
+
+args.add_argument(
     "--tasks_use_ray",
     type=bool,
     default=True,
@@ -86,8 +95,8 @@ if __name__ == "__main__":
     args = args.parse_args()
 
     # env_vars = dict(os.environ)
-    # ray.init(runtime_env={"env_vars": env_vars})
-    ray.init(address="auto",namespace="default",ignore_reinit_error=True)
+    # ray.init(runtime_env={"env_vars": env_vars})            
+    ray.init(address=args.ray_address,namespace="default",ignore_reinit_error=True)
     # Parse user metadata.
     user_metadata = {}
     if args.metadata:
