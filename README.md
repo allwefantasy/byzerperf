@@ -51,7 +51,7 @@ python perf.py --results-dir ./result  --prompts-dir ./prompts --num-concurrent-
 The above command will send 5 concurrent requests to the model and the result will be saved in the `./result` directory.
 The parameter template now supports:
 
-1. qwen (If you use Qwen 1.5,please use `auto` instead)
+1. qwen
 2. yi 
 3. auto
 
