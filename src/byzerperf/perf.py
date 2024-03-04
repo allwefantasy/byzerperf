@@ -123,7 +123,8 @@ class ByzerLLMPerfExplains():
     def __init__(self,llm:ByzerLLM,results_dir:str,num_concurrent_requests:int=0) -> None:
         self.results_dir = results_dir  
         self.llm = llm 
-        self.data = self.get_data()    
+        self.data = self.get_data() 
+        self.memory = []   
         self.num_concurrent_requests = num_concurrent_requests
         if self.num_concurrent_requests == 0:
             self.num_concurrent_requests = self.get_num_concurrent_requests()
@@ -146,10 +147,7 @@ class ByzerLLMPerfExplains():
                                 continue
                             yield TaskResult.build_from(json.loads(line))
 
-    def _run(self,prompt:str)->utils.Str:   
-        pass 
-    
-    def run(self,prompt:str=None):
+    def get_metrics(self):
         metrics = {
             "avg_input_tokens_count": 0,
             "avg_generated_tokens_count": 0,
@@ -204,26 +202,37 @@ class ByzerLLMPerfExplains():
         metrics["avg_client_duration"] = metrics["client_duration"] / row_count 
 
         metrics["num_concurrent_requests"] = self.num_concurrent_requests
-        
+        return metrics 
 
+    def get_system_message(self):
+        metrics = self.get_metrics()  
         context = json.dumps(metrics,ensure_ascii=False)  
-        if prompt is None:
-            t = self.llm.chat_oai(conversations=[{
-    "role":"user",
-    "content":f'''
-有上下文如下：
+        return f'''有上下文如下：
 ```json
 {context}
 ```
 
-下面是指标解释：
+下面是一些关键指标的解释：
 1. avg_server_speed: 服务器每个请求平均吞吐(tokens/s)
 2. avg_input_tokens_count: 输入的平均tokens数
 3. avg_server_first_token_time: 从请求输入到服务器返回第一个token的平均时间(ms)
 4. client_generated_tokens_per_second: 客户端每秒生成的tokens数
 5. server_generated_tokens_per_second: 服务器每秒生成的tokens数
+''',context
 
-然后用下面的模板进行解释：
+    
+    def run(self,prompt:str=None):        
+        sys_content,context = self.get_system_message() 
+        if len(self.memory) == 0:
+            self.memory.append({
+                "role":"system",
+                "content":sys_content
+            })            
+        
+        if prompt is None:
+            conversation = {
+    "role":"user",
+    "content":f'''用下面的模板进行解释：
 
 在平均输入token长度为{{avg_input_tokens_count}}的情况下，
 从请求输入到服务器返回第一个token的平均时间为{{avg_server_first_token_time}}ms
@@ -232,23 +241,26 @@ class ByzerLLMPerfExplains():
 
 客户端每秒生成{{client_generated_tokens_per_second}} tokens
 服务器每秒生成{{server_generated_tokens_per_second}} tokens
-
 '''
-}])
-
+}          
+            self.memory.append(conversation)
+            t = self.llm.chat_oai(conversations=self.memory)
+            self.memory.append({
+                "role":"assistant",
+                "content":t[0].output
+            })
             return t[0].output,context
-
-        TypeError = self.llm.chat_oai(conversations=[{
-    "role":"user",
-    "content":f'''
-有上下文如下：
-                                              
-```json                                              
-{context}
-```
-请根据上面的上下文回答：{prompt}
-'''
-        }])
+        
+        conversation = {
+                "role":"user",
+                "content":prompt
+        }        
+        self.memory.append(conversation)
+        t = self.llm.chat_oai(conversations=self.memory)        
+        self.memory.append({
+                "role":"assistant",
+                "content":t[0].output
+            })
         return t[0].output,context
 
 
@@ -278,13 +290,34 @@ class ByzerLLMPerf():
         self.template = template
         self.client = None
     
+    @classmethod
+    def create(cls,model:str,prompts_dir:str,results_dir:str,num_concurrent_requests:int,template:str="auto"):
+        return cls(
+            model=model,
+            timeout=90,
+            max_num_completed_requests= 0,
+            num_concurrent_requests=num_concurrent_requests,
+            additional_sampling_params={},
+            results_dir=results_dir,
+            metadata={},            
+            prompts_dir=prompts_dir,
+            tasks_use_ray=True,
+            template=template
+        )
+    
     def prompts(self):
         prompts = []
         for filename in os.listdir(self.prompts_dir):
             filepath = os.path.join(self.prompts_dir, filename)
-            with open(filepath, 'r') as file:
-                for line in file:
-                    prompts.append(line.strip())
+            _,extension = os.path.splitext(filepath)
+            if extension == ".jsonl":
+                with open(filepath, 'r') as file:
+                    for line in file:
+                        prompts.append(json.loads(line)["prompt"])
+            else:            
+                with open(filepath, 'r') as file:
+                    for line in file:
+                        prompts.append(line.strip())
         return prompts
 
     
