@@ -161,7 +161,8 @@ class ByzerLLMPerfExplains():
             "input_tokens_count": 0,
             "server_duration": 0,
             "client_duration": 0,
-            "server_speed":0,
+            "server_sum_speed":0,
+            "server_sum_first_token_time":0,
         }
         row_count = 0
         min_start = 0
