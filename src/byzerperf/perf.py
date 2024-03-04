@@ -159,6 +159,7 @@ class ByzerLLMPerfExplains():
             "input_tokens_count": 0,
             "server_duration": 0,
             "client_duration": 0,
+            "server_speed":0,
         }
         row_count = 0
         min_start = 0
@@ -179,9 +180,14 @@ class ByzerLLMPerfExplains():
             metrics["input_tokens_count"] += row.input_tokens_count
             metrics["server_duration"] += row.time_cost
             metrics["client_duration"] += row.client_duration
+            metrics["server_sum_speed"] += row.speed
+            metrics["server_sum_first_token_time"] += row.first_token_time
         
         metrics["first_request_submit_time"]  = min_start
         metrics["last_request_complete_time"] = max_end
+
+        metrics["avg_server_speed"] = metrics["server_sum_speed"] / row_count
+        metrics["avg_server_first_token_time"] = metrics["server_sum_first_token_time"] / row_count
 
         metrics["server_generated_tokens_per_second_per_request"] = metrics["generated_tokens_count"] / metrics["server_duration"] * 1000
         metrics["client_generated_tokens_per_second_per_request"] = metrics["generated_tokens_count"] / metrics["client_duration"] * 1000
