@@ -53,6 +53,7 @@ The parameter template now supports:
 
 1. qwen
 2. yi 
+3. default (Style: User:xxxx \nAssistant:xxxx )
 3. auto
 
 Since Byzer-LLM supports SaaS model and roprietary model deployment, so you can test the performance of any SaaS model or proprietary model.

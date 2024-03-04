@@ -60,7 +60,9 @@ class Task():
         if self.template == "qwen":
             llm.setup_template(model=self.model,template=Templates.qwen())
         elif self.template == "yi":
-            llm.setup_template(model=self.model,template=Templates.yi())        
+            llm.setup_template(model=self.model,template=Templates.yi())  
+        elif self.template == "default":
+            llm.setup_template(model=self.model,template=Templates.default())            
         else:
             llm.setup_template(model=self.model,template="auto")
 
