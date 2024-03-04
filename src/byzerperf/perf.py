@@ -149,7 +149,7 @@ class ByzerLLMPerfExplains():
     def _run(self,prompt:str)->utils.Str:   
         pass 
     
-    def run(self,prompt:str):
+    def run(self,prompt:str=None):
         metrics = {
             "avg_input_tokens_count": 0,
             "avg_generated_tokens_count": 0,
