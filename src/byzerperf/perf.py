@@ -206,17 +206,50 @@ class ByzerLLMPerfExplains():
         metrics["num_concurrent_requests"] = self.num_concurrent_requests
         
 
-        context = json.dumps(metrics,ensure_ascii=False)   
+        context = json.dumps(metrics,ensure_ascii=False)  
+        if prompt is None:
+            t = self.llm.chat_oai(conversations=[{
+    "role":"user",
+    "content":f'''
+有上下文如下：
+```json
+{context}
+```
 
-        v = self.llm.response()(self._run)(f'''
+下面是指标解释：
+1. avg_server_speed: 服务器每个请求平均吞吐(tokens/s)
+2. avg_input_tokens_count: 输入的平均tokens数
+3. avg_server_first_token_time: 从请求输入到服务器返回第一个token的平均时间(ms)
+4. client_generated_tokens_per_second: 客户端每秒生成的tokens数
+5. server_generated_tokens_per_second: 服务器每秒生成的tokens数
+
+然后用下面的模板进行解释：
+
+在平均输入token长度为{{avg_input_tokens_count}}的情况下，
+从请求输入到服务器返回第一个token的平均时间为{{avg_server_first_token_time}}ms
+
+服务器每个请求平均吞吐{{avg_server_speed}} tokens/s
+
+客户端每秒生成{{client_generated_tokens_per_second}} tokens
+服务器每秒生成{{server_generated_tokens_per_second}} tokens
+
+'''
+}])
+
+            return t[0].output,context
+
+        v = self.llm.chat_oai(conversations=[{
+    "role":"user",
+    "content":f'''
 有上下文如下：
                                               
 ```json                                              
 {context}
 ```
 请根据上面的上下文回答：{prompt}
-''')
-        return v,context
+'''
+        }])
+        return v.value,context
 
 
 class ByzerLLMPerf():
