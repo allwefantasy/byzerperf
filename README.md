@@ -18,6 +18,7 @@ Perf Tool For Byzer-LLM
 
 *Latest News* 🔥
 
+- [2024/03] Release Byzer-Perf 0.1.1
 - [2024/02] Release Byzer-Perf 0.1.0
 
 ---
