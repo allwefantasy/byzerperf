@@ -238,7 +238,7 @@ class ByzerLLMPerfExplains():
 
             return t[0].output,context
 
-        v = self.llm.chat_oai(conversations=[{
+        TypeError = self.llm.chat_oai(conversations=[{
     "role":"user",
     "content":f'''
 有上下文如下：
@@ -249,7 +249,7 @@ class ByzerLLMPerfExplains():
 请根据上面的上下文回答：{prompt}
 '''
         }])
-        return v.value,context
+        return t[0].output,context
 
 
 class ByzerLLMPerf():
