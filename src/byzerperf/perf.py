@@ -299,7 +299,7 @@ class ByzerLLMPerf():
         self.pin_model_worker_mapping = pin_model_worker_mapping
     
     @classmethod
-    def create(cls,model:str,prompts_dir:str,results_dir:str,num_concurrent_requests:int,template:str="auto"):
+    def create(cls,model:str,prompts_dir:str,results_dir:str,num_concurrent_requests:int,template:str="auto",pin_model_worker_mapping:Optional[Dict[str,int]]=None):
         return cls(
             model=model,
             timeout=90,
@@ -310,7 +310,8 @@ class ByzerLLMPerf():
             metadata={},            
             prompts_dir=prompts_dir,
             tasks_use_ray=True,
-            template=template
+            template=template,
+            pin_model_worker_mapping=pin_model_worker_mapping    
         )
     
     def prompts(self):
