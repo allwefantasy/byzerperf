@@ -18,7 +18,7 @@ Perf Tool For Byzer-LLM
 
 *Latest News* 🔥
 
-- [2024/03] Release Byzer-Perf 0.1.1
+- [2024/03] Release Byzer-Perf 0.1.2
 - [2024/02] Release Byzer-Perf 0.1.0
 
 ---
@@ -201,6 +201,81 @@ The output:
 
 最佳并发数的确定需要找到服务器处理请求效率和并发数之间的平衡点。从上述数据来看，随着并发数的增加，服务器单个请求的吞吐量下降，但整体吞吐量（即总处理能力）在增加，直到某个点后，增加的并发数可能对服务器造成过度压力，导致响应时间过长，效率下降。在给出的数据中，这个平衡点可能在`num_concurrent_requests:10`时达到，因为此时服务器的每个请求吞吐量（14.93 tokens/s）和整体吞吐量（145.34 tokens/s）都相对较高，同时响应时间（227.48ms）还在可接受范围内。然而，这需要根据实际应用的需求和服务器的承载能力来进一步确认。
 ```
+
+## Troubleshooting
+
+### One model intance with multiple Workers
+
+If you deploy one model instance with multiple workers, then the ByzerLLM will route the request to the worker with the LRU policy. But the ByzerLLM have other type of request:
+
+1. embedding
+2. apply_chat_template
+3. tokenize
+4. complete/chat
+
+This will cause some workers to be idle since some workers have much requests like `complete/chat` and some workers have much requests like `embedding`. but only complete/chat requests will be used to test the performance of the model.
+
+Here is the deployment code:
+
+```python
+llm.setup_gpus_per_worker(2).setup_num_workers(4).setup_infer_backend(InferBackend.VLLM)
+llm.setup_worker_concurrency(999)
+llm.sys_conf["load_balance"] = "round_robin"
+llm.deploy(
+    model_path=model_location,
+    pretrained_model_type="custom/auto",
+    udf_name=chat_model_name,
+    infer_params={"backend.gpu_memory_utilization":0.8,
+                  "backend.enforce_eager":False,
+                  "backend.trust_remote_code":True,
+                  "backend.max_model_len":1024*4,
+                  "backend.quantization":"gptq",
+                  }
+)
+```
+
+This code will deploy the model with 4 workers and each worker has 2 GPUs, and each worker is a vLLM worker.
+When the request is sent to the model, the LRU policy will be used to route the request to the worker.
+
+Then you can use the following code to bind non-complete/chat requests to the same worker and not use the LRU policy.
+
+```python
+
+import os
+import ray
+
+ray.init(address="auto",namespace="default",ignore_reinit_error=True)   
+
+from byzerperf.perf import ByzerLLMPerf
+
+num_gpus = 8
+quantization = "int4"
+llm_size = "qwen-72B"
+
+
+for i in range(50,230,30):
+    num_concurrent_requests = i
+    result_dir = f"/home/byzerllm/projects/byzerperf/result-6-{num_concurrent_requests}-{llm_size}-{quantization}-{num_gpus}gpu"
+
+    byzer_llm_perf = ByzerLLMPerf.create(
+            model="chat",                        
+            num_concurrent_requests=num_concurrent_requests,            
+            results_dir=result_dir,                        
+            prompts_dir="/home/byzerllm/projects/byzerperf/prompts",
+            template="qwen",  
+            pin_model_worker_mapping={
+                "embedding":0,
+                "tokenizer":0,
+                "apply_chat_template":0,
+                "meta":0,
+            }      
+        )        
+
+    byzer_llm_perf.run()
+    
+```
+
+After setting the `pin_model_worker_mapping` parameter, the complete/chat request will be sent to the workers with the LRU policy, and the other requests will be sent to the workers with the specified worker id.
 
 ## Roadmap
 
