@@ -16,7 +16,7 @@ einops
 tqdm==4.62.3
 loguru
 tensorboard
-pyjava==0.6.14
+pyjava==0.6.15
 tiktoken
 transformers_stream_generator
 optimum
@@ -26,7 +26,6 @@ retrying
 zhipuai
 dashscope
 tiktoken
-byzerllm
 
 # dependencies only for sparkdesk
 # websockets
