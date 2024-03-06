@@ -1,4 +1,4 @@
-from typing import Dict, Any,List,Generator
+from typing import Dict, Any,List,Generator,Optional
 from byzerllm.utils.client import ByzerLLM,Templates
 import json
 import time
@@ -46,12 +46,15 @@ class Task():
                  model:str,                                                
                  additional_sampling_params:Dict[str,Any],                 
                  metadata:Dict[str,Any],                                  
-                 template:str="auto" ) -> None:
+                 template:str="auto" ,
+                 pin_model_worker_mapping:Optional[Dict[str,int]]=None,
+                 ) -> None:
         self.prompts = prompts
         self.model = model                       
         self.additional_sampling_params = additional_sampling_params        
         self.metadata = metadata                            
         self.template = template
+        self.pin_model_worker_mapping = pin_model_worker_mapping
         self.client = self.construct_client()
 
     def construct_client(self):
@@ -65,6 +68,9 @@ class Task():
             llm.setup_template(model=self.model,template=Templates.default())            
         else:
             llm.setup_template(model=self.model,template="auto")
+        
+        if self.pin_model_worker_mapping is not None:
+            llm.setup_pin_model_worker_mapping(self.pin_model_worker_mapping)
 
         llm.setup_default_emb_model_name("emb")
         llm.setup_default_model_name(self.model)
@@ -275,7 +281,8 @@ class ByzerLLMPerf():
                  metadata:Dict[str,Any],
                  prompts_dir:str,
                  tasks_use_ray:bool=True,
-                 template:str="auto"                 
+                 template:str="auto",
+                 pin_model_worker_mapping:Optional[Dict[str,int]]=None                 
                  ):
          
         self.model = model
@@ -289,6 +296,7 @@ class ByzerLLMPerf():
         self.prompts_dir = prompts_dir
         self.template = template
         self.client = None
+        self.pin_model_worker_mapping = pin_model_worker_mapping
     
     @classmethod
     def create(cls,model:str,prompts_dir:str,results_dir:str,num_concurrent_requests:int,template:str="auto"):
@@ -345,7 +353,7 @@ class ByzerLLMPerf():
             total_requests = len(self.prompts())
             complted_requests = RowCounter(total_requests)
 
-            tasks = []
+            tasks = []            
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_concurrent_requests) as executor:
                 for prompts in utils.split_list(self.prompts(),self.num_concurrent_requests):
@@ -354,7 +362,9 @@ class ByzerLLMPerf():
                         model=model, 
                         additional_sampling_params=additional_sampling_params,                        
                         metadata=metadata,                                                
-                        template=template) 
+                        template=template,
+                        pin_model_worker_mapping=self.pin_model_worker_mapping,
+                        ) 
                     tasks.append(task)
                                                 
                 for i,task in enumerate(tasks):                    
